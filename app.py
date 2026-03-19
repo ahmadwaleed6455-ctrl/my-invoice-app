@@ -109,7 +109,11 @@ if total_exp > 0:
         pdf.set_text_color(27, 94, 32)
         pdf.cell(200, 15, txt="DETAILED BILL ANALYSIS REPORT", ln=True, align='C')
         pdf.ln(5)
-        
+        # Timestamp in PDF
+        pdf.set_font("Arial", 'I', 10)
+        pdf.set_text_color(100)
+        pdf.cell(200, 5, txt=f"Report Generated: {now}", ln=True, align='C')
+        pdf.ln(10)
         # Inputs Section
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0)
