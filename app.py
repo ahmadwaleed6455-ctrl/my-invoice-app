@@ -1,100 +1,160 @@
 import streamlit as st
 from fpdf import FPDF
+import datetime
 
-# 1. Page Config & UI
-st.set_page_config(page_title="Pro LRH Calculator", layout="centered")
-st.title("📊 LRH Pro-Adjusted Bill Calculator")
-st.markdown("Profit ko proportionaly Parts aur Job mein adjust karne wala system.")
+# 1. Page Configuration & UI Beautification
+st.set_page_config(page_title="Professional Bill Calculator", page_icon="⚖️", layout="centered")
 
-# 2. Sidebar Settings (C6 to C11)
-st.sidebar.header("⚙️ Tax & Commission Settings")
-p_gst = st.sidebar.number_input("Parts GST % (C6)", value=18.0) / 100
-p_it = st.sidebar.number_input("Parts IT % (C7)", value=5.5) / 100
-j_bra = st.sidebar.number_input("Labor BRA % (C8)", value=16.0) / 100
-j_it = st.sidebar.number_input("Labor IT % (C9)", value=11.0) / 100
-comm_pct = st.sidebar.number_input("Total Commission % (C10+C11)", value=10.0) / 100
+st.markdown("""
+    <style>
+    .main { background-color: #f4f7f6; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stButton>button { width: 100%; border-radius: 8px; height: 3em; background-color: #2e7d32; color: white; font-weight: bold; }
+    </style>
+    """, unsafe_allow_code=True)
 
-# 3. Manual Entry (D2, E2, F2)
-st.subheader("📥 Expenditure & Profit Entry")
-col1, col2, col3 = st.columns(3)
-with col1:
-    d2_parts = st.number_input("Parts Actual Cost (D2)", value=100000)
-with col2:
-    e2_jobs = st.number_input("Labor Actual Cost (E2)", value=50000)
-with col3:
-    f2_profit = st.number_input("Net Profit (F2)", value=15000)
+st.title("⚖️ Professional Bill & Tax Analyst")
+st.markdown("Reverse-calculate your total bill based on required net profit and expenses.")
 
-# 4. Professional Accountant Logic
-c2_net = d2_parts + e2_jobs + f2_profit
-total_exp = d2_parts + e2_jobs
+# 2. Sidebar: Global Tax & Commission Settings
+with st.sidebar:
+    st.header("📋 Tax Configuration")
+    st.subheader("Parts Taxes")
+    p_gst = st.number_input("GST on Parts (%)", value=18.0) / 100
+    p_it = st.number_input("Income Tax on Parts (%)", value=5.5) / 100
+    
+    st.subheader("Labor/Job Taxes")
+    j_bra = st.number_input("BRA Tax (%)", value=16.0) / 100
+    j_it = st.number_input("Income Tax on Labor (%)", value=11.0) / 100
+    
+    st.subheader("Service Fees")
+    comm_pct = st.number_input("Total Commission (%)", value=10.0) / 100
+    st.info("These settings apply globally to the calculation below.")
+
+# 3. Main Inputs: Expenditure & Profit
+st.subheader("📥 Manual Entry (Base Figures)")
+with st.container():
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        parts_cost = st.number_input("Parts Expenditure", value=100000, help="Actual cost of parts")
+    with col2:
+        labor_cost = st.number_input("Labor/Service Cost", value=50000, help="Actual cost of labor/jobs")
+    with col3:
+        target_profit = st.number_input("Required Profit", value=15000, help="Your targeted net profit")
+
+# 4. Core Logic: Proportional Allocation
+required_net = parts_cost + labor_cost + target_profit
+total_exp = parts_cost + labor_cost
 
 if total_exp > 0:
-    # C3 and C4 based on expenditure only (to ensure 100% split of Gross Bill)
-    c3_ratio = d2_parts / total_exp
-    c4_ratio = e2_jobs / total_exp
+    # Ratios based on expenditure
+    ratio_parts = parts_cost / total_exp
+    ratio_labor = labor_cost / total_exp
     
-    # Master Formula (C13)
-    tax_factor = (c3_ratio * (p_gst + p_it)) + (c4_ratio * (j_bra + j_it))
-    gross_bill = c2_net / ((1 - tax_factor) * (1 - comm_pct))
+    # Effective Tax Factor
+    tax_factor = (ratio_parts * (p_gst + p_it)) + (ratio_labor * (j_bra + j_it))
     
-    # Adjusted Shares (Profit is now hidden inside these two)
-    c15_adj_parts = gross_bill * c3_ratio
-    c16_adj_jobs = gross_bill * c4_ratio
+    # Gross Bill Calculation
+    gross_bill = required_net / ((1 - tax_factor) * (1 - comm_pct))
     
-    # Back Verification
-    tax_p = c15_adj_parts * (p_gst + p_it)
-    tax_j = c16_adj_jobs * (j_bra + j_it)
-    cheque = gross_bill - (tax_p + tax_j)
-    final_net = cheque * (1 - comm_pct)
+    # Adjusted Shares (Profit merged proportionally)
+    adj_gross_parts = gross_bill * ratio_parts
+    adj_gross_labor = gross_bill * ratio_labor
+    
+    # Back-Verification
+    tax_on_p = adj_gross_parts * (p_gst + p_it)
+    tax_on_l = adj_gross_labor * (j_bra + j_it)
+    cheque_amount = gross_bill - (tax_on_p + tax_on_l)
+    commission_amt = cheque_amount * comm_pct
+    final_hand_cash = cheque_amount - commission_amt
 
-    # 5. Display Results
+    # 5. Visual Results Display
     st.divider()
-    st.success(f"### TOTAL GROSS BILL: {gross_bill:,.2f} PKR")
-    
-    # Showing the split that adds up to 100% of Gross Bill
     res_col1, res_col2 = st.columns(2)
     with res_col1:
-        st.write(f"**Adjusted Gross Parts (C15):** {c15_adj_parts:,.2f}")
-        st.write(f"**Tax on Parts:** {tax_p:,.2f}")
+        st.metric("TOTAL BILL VALUE (GROSS)", f"{gross_bill:,.2f} PKR")
     with res_col2:
-        st.write(f"**Adjusted Gross Job (C16):** {c16_adj_jobs:,.2f}")
-        st.write(f"**Tax on Job:** {tax_j:,.2f}")
-    
-    st.info(f"**Sum of Splits (C15 + C16):** {(c15_adj_parts + c16_adj_jobs):,.2f} ✅")
-    st.markdown(f"**Final Net in Hand (Verification):** {final_net:,.2f}")
+        st.metric("NET RECEIVABLE (FINAL)", f"{final_hand_cash:,.2f} PKR")
 
-    # 6. PDF Generation Function
-    def create_pdf():
+    # 6. Detailed Audit Breakdown
+    with st.expander("📝 View Detailed Audit Breakdown"):
+        st.write("Profit has been adjusted proportionally into Parts and Labor shares.")
+        st.table({
+            "Description": ["Adjusted Parts Share", "Adjusted Labor Share", "Tax Deducted (Parts)", "Tax Deducted (Labor)", "Service Commission"],
+            "Amount (PKR)": [f"{adj_gross_parts:,.2f}", f"{adj_gross_labor:,.2f}", f"{tax_on_p:,.2f}", f"{tax_on_l:,.2f}", f"{commission_amt:,.2f}"]
+        })
+
+    # 7. PDF Report Generator
+    def create_professional_pdf():
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font("Arial", 'B', 16)
-        pdf.cell(200, 10, txt="REPAIR BILL REPORT (LRH)", ln=True, align='C')
+        
+        # Header
+        pdf.set_font("Arial", 'B', 20)
+        pdf.set_text_color(46, 125, 50) # Greenish
+        pdf.cell(200, 15, txt="BILL VERIFICATION REPORT", ln=True, align='C')
+        pdf.set_font("Arial", size=10)
+        pdf.set_text_color(100)
+        pdf.cell(200, 5, txt=f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align='C')
         pdf.ln(10)
         
-        pdf.set_font("Arial", size=12)
-        pdf.cell(200, 10, txt=f"Actual Expenditure (Parts + Job): {(d2_parts + e2_jobs):,.2f}", ln=True)
-        pdf.cell(200, 10, txt=f"Allocated Profit: {f2_profit:,.2f}", ln=True)
-        pdf.ln(5)
-        
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt=f"TOTAL GROSS BILL: {gross_bill:,.2f}", ln=True)
-        pdf.ln(5)
-        
-        pdf.set_font("Arial", size=11)
-        pdf.cell(200, 8, txt=f"Line Item 1: Parts (Adjusted): {c15_adj_parts:,.2f}", ln=True)
-        pdf.cell(200, 8, txt=f"Line Item 2: Labor (Adjusted): {c16_adj_jobs:,.2f}", ln=True)
-        pdf.cell(200, 8, txt=f"Total Taxes to be Deducted: {(tax_p + tax_j):,.2f}", ln=True)
-        pdf.cell(200, 8, txt=f"Estimated Cheque Amount: {cheque:,.2f}", ln=True)
-        pdf.ln(5)
-        
+        # Section 1: Inputs
+        pdf.set_fill_color(240, 240, 240)
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(200, 10, txt=f"FINAL NET AFTER COMMISSION: {final_net:,.2f}", ln=True)
+        pdf.set_text_color(0)
+        pdf.cell(200, 10, txt=" 1. INPUT SUMMARY", ln=True, fill=True)
+        pdf.set_font("Arial", size=11)
+        pdf.cell(100, 10, txt=f"Actual Parts Cost: {parts_cost:,.2f}")
+        pdf.cell(100, 10, txt=f"Actual Labor Cost: {labor_cost:,.2f}", ln=True)
+        pdf.cell(100, 10, txt=f"Target Profit: {target_profit:,.2f}")
+        pdf.cell(100, 10, txt=f"Total Required Net: {required_net:,.2f}", ln=True)
+        pdf.ln(5)
+        
+        # Section 2: Bill Value
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(200, 10, txt=" 2. CALCULATED BILL VALUE", ln=True, fill=True)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.set_text_color(25, 118, 210) # Blue
+        pdf.cell(200, 15, txt=f"TOTAL GROSS BILL: {gross_bill:,.2f} PKR", ln=True)
+        
+        # Section 3: Detailed Deductions
+        pdf.set_font("Arial", 'B', 12)
+        pdf.set_text_color(0)
+        pdf.cell(200, 10, txt=" 3. DEDUCTION & BACK-VERIFICATION", ln=True, fill=True)
+        pdf.set_font("Arial", size=11)
+        pdf.cell(130, 8, txt="Adjusted Parts Share (Profit included):")
+        pdf.cell(50, 8, txt=f"{adj_gross_parts:,.2f}", ln=True, align='R')
+        pdf.cell(130, 8, txt="Adjusted Labor Share (Profit included):")
+        pdf.cell(50, 8, txt=f"{adj_gross_labor:,.2f}", ln=True, align='R')
+        pdf.cell(130, 8, txt=f"Taxes on Parts ({(p_gst+p_it)*100}%):")
+        pdf.cell(50, 8, txt=f"- {tax_on_p:,.2f}", ln=True, align='R')
+        pdf.cell(130, 8, txt=f"Taxes on Labor ({(j_bra+j_it)*100}%):")
+        pdf.cell(50, 8, txt=f"- {tax_on_l:,.2f}", ln=True, align='R')
+        pdf.ln(2)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(130, 10, txt="Cheque Amount (After Taxes):")
+        pdf.cell(50, 10, txt=f"{cheque_amount:,.2f}", ln=True, align='R')
+        pdf.set_font("Arial", size=11)
+        pdf.cell(130, 8, txt=f"Service Commission ({comm_pct*100}%):")
+        pdf.cell(50, 8, txt=f"- {commission_amt:,.2f}", ln=True, align='R')
+        
+        pdf.ln(5)
+        pdf.set_font("Arial", 'B', 14)
+        pdf.set_text_color(46, 125, 50)
+        pdf.cell(130, 12, txt="FINAL NET IN HAND:")
+        pdf.cell(50, 12, txt=f"{final_hand_cash:,.2f} PKR", ln=True, align='R')
         
         return pdf.output(dest='S').encode('latin-1')
 
-    if st.button("📄 Generate PDF Summary"):
-        pdf_bytes = create_pdf()
-        st.download_button(label="📥 Download PDF", data=pdf_bytes, file_name="bill_summary.pdf", mime="application/pdf")
-
+    # Download Button
+    st.divider()
+    if st.button("📥 Generate & Download Professional PDF"):
+        pdf_out = create_professional_pdf()
+        st.download_button(
+            label="Download Final Invoice Report",
+            data=pdf_out,
+            file_name=f"Tax_Analysis_{int(gross_bill)}.pdf",
+            mime="application/pdf"
+        )
 else:
-    st.warning("Please enter Expenditure amounts to start calculation.")
+    st.warning("Please enter expenses to view the calculation.")
