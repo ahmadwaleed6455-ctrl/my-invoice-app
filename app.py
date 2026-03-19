@@ -76,49 +76,83 @@ if total_exp > 0:
     with res_col2:
         st.metric("NET CASH IN HAND", f"{final_hand_cash:,.2f} PKR")
 
-    # 6. Detail Table
+# 6. Detailed Audit Trail (Separated Taxes)
     with st.expander("📝 Detailed Audit Trail"):
         st.table({
-            "Description": ["Adjusted Parts (with profit)", "Adjusted Labor (with profit)", "Total Taxes (Parts + Job)", "Cheque Amount", "Commission Fee"],
-            "Amount (PKR)": [f"{adj_gross_parts:,.2f}", f"{adj_gross_labor:,.2f}", f"{(tax_on_p + tax_on_l):,.2f}", f"{cheque_amount:,.2f}", f"{commission_amt:,.2f}"]
+            "Description": [
+                "Gross Parts Amount (Profit Adjusted)", 
+                "Gross Labor Amount (Profit Adjusted)", 
+                "Tax on Parts (GST + IT)", 
+                "Tax on Labor (BRA + IT)", 
+                "Net Cheque Amount (After Taxes)", 
+                "Service Commission Fee"
+            ],
+            "Amount (PKR)": [
+                f"{adj_gross_parts:,.2f}", 
+                f"{adj_gross_labor:,.2f}", 
+                f"{tax_on_p:,.2f}", 
+                f"{tax_on_l:,.2f}", 
+                f"{cheque_amount:,.2f}", 
+                f"{commission_amt:,.2f}"
+            ]
         })
-
-    # 7. PDF Function
+  # 7. Professional PDF Function
     def create_audit_pdf():
         pdf = FPDF()
         pdf.add_page()
+        
+        # Header Styling
         pdf.set_font("Arial", 'B', 18)
         pdf.set_text_color(27, 94, 32)
-        pdf.cell(200, 15, txt="BILL VERIFICATION REPORT", ln=True, align='C')
-        pdf.ln(10)
+        pdf.cell(200, 15, txt="DETAILED BILL ANALYSIS REPORT", ln=True, align='C')
+        pdf.ln(5)
         
-        pdf.set_font("Arial", size=11)
+        # Inputs Section
+        pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0)
-        pdf.cell(200, 10, txt=f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
-        pdf.cell(100, 10, txt=f"Parts Cost: {parts_cost:,.2f}")
-        pdf.cell(100, 10, txt=f"Labor Cost: {labor_cost:,.2f}", ln=True)
-        pdf.cell(100, 10, txt=f"Profit: {target_profit:,.2f}")
-        pdf.cell(100, 10, txt=f"Required Net: {required_net:,.2f}", ln=True)
+        pdf.cell(200, 10, txt="1. BASE EXPENDITURE SUMMARY", ln=True)
+        pdf.set_font("Arial", size=11)
+        pdf.cell(100, 8, txt=f"Actual Parts Cost: {parts_cost:,.2f}")
+        pdf.cell(100, 8, txt=f"Actual Labor Cost: {labor_cost:,.2f}", ln=True)
+        pdf.cell(100, 8, txt=f"Allocated Profit: {target_profit:,.2f}", ln=True)
         pdf.ln(5)
         
+        # Main Result
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 12, txt=f"GROSS BILL AMOUNT: {gross_bill:,.2f}", ln=True)
+        pdf.cell(200, 12, txt=f"TOTAL GROSS BILL AMOUNT: {gross_bill:,.2f}", ln=True)
         pdf.ln(5)
+        
+        # Detailed Back-Verification
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(200, 10, txt="2. TAX & DEDUCTION BREAKDOWN (VERIFICATION)", ln=True)
+        pdf.set_font("Arial", size=11)
+        
+        # Table-style layout
+        pdf.cell(130, 8, txt="Adjusted Gross Parts (Including Profit Share):")
+        pdf.cell(50, 8, txt=f"{adj_gross_parts:,.2f}", ln=True, align='R')
+        
+        pdf.cell(130, 8, txt="Adjusted Gross Labor (Including Profit Share):")
+        pdf.cell(50, 8, txt=f"{adj_gross_labor:,.2f}", ln=True, align='R')
+        
+        pdf.set_text_color(200, 0, 0) # Red for Deductions
+        pdf.cell(130, 8, txt=f"Less: Taxes on Parts ({(p_gst+p_it)*100}%):")
+        pdf.cell(50, 8, txt=f"- {tax_on_p:,.2f}", ln=True, align='R')
+        
+        pdf.cell(130, 8, txt=f"Less: Taxes on Labor ({(j_bra+j_it)*100}%):")
+        pdf.cell(50, 8, txt=f"- {tax_on_l:,.2f}", ln=True, align='R')
+        
+        pdf.set_text_color(0)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(130, 10, txt="Net Cheque Amount:")
+        pdf.cell(50, 10, txt=f"{cheque_amount:,.2f}", ln=True, align='R')
         
         pdf.set_font("Arial", size=11)
-        pdf.cell(130, 8, txt="Adjusted Parts (Line Item 1):")
-        pdf.cell(50, 8, txt=f"{adj_gross_parts:,.2f}", ln=True, align='R')
-        pdf.cell(130, 8, txt="Adjusted Labor (Line Item 2):")
-        pdf.cell(50, 8, txt=f"{adj_gross_labor:,.2f}", ln=True, align='R')
-        pdf.cell(130, 8, txt=f"Total Deducted Taxes:")
-        pdf.cell(50, 8, txt=f"- {(tax_on_p + tax_on_l):,.2f}", ln=True, align='R')
-        pdf.cell(130, 8, txt=f"Cheque Amount:")
-        pdf.cell(50, 8, txt=f"{cheque_amount:,.2f}", ln=True, align='R')
-        pdf.cell(130, 8, txt=f"Commission ({comm_pct*100}%):")
+        pdf.cell(130, 8, txt=f"Less: Service Commission ({comm_pct*100}%):")
         pdf.cell(50, 8, txt=f"- {commission_amt:,.2f}", ln=True, align='R')
-        pdf.ln(5)
         
+        pdf.ln(5)
         pdf.set_font("Arial", 'B', 14)
+        pdf.set_text_color(27, 94, 32)
         pdf.cell(130, 12, txt="FINAL NET RECEIVABLE:")
         pdf.cell(50, 12, txt=f"{final_hand_cash:,.2f}", ln=True, align='R')
         
